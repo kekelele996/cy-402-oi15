@@ -1,29 +1,34 @@
 import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
-import { Card, Descriptions, Tabs, Button, Select, Space, message, Tag } from 'antd'
+import { Card, Descriptions, Tabs, Button, Select, Space, message, Tag, Badge } from 'antd'
 import { getCase, changeCaseStatus, assignLawyer } from '@/api/case'
 import { getClient } from '@/api/client'
+import { listCaseAssignees } from '@/api/caseTask'
 import DocumentList from '@/components/common/DocumentList'
 import BillingCard from '@/components/common/BillingCard'
 import StatusBadge from '@/components/common/StatusBadge'
 import PermissionGuard from '@/components/common/PermissionGuard'
 import TimelineItem from '@/components/common/TimelineItem'
+import CaseTaskList from '@/components/common/CaseTaskList'
 import { useDocumentStore } from '@/stores/documentStore'
 import { useBillingStore } from '@/stores/billingStore'
 import { useUserStore } from '@/stores/userStore'
+import { useCaseTaskStore } from '@/stores/caseTaskStore'
 import { CaseStatusOptions, CaseTypeOptions } from '@/constants/case'
-import type { CaseItem, Client } from '@/types'
+import type { CaseItem, Client, User } from '@/types'
 
 export default function CaseDetail() {
   const { id } = useParams()
   const caseId = Number(id)
   const [item, setItem] = useState<CaseItem | null>(null)
   const [client, setClient] = useState<Client | null>(null)
+  const [assignees, setAssignees] = useState<User[]>([])
   const [status, setStatus] = useState('')
   const [lawyer, setLawyer] = useState<number>()
   const docStore = useDocumentStore()
   const billingStore = useBillingStore()
   const userStore = useUserStore()
+  const taskStore = useCaseTaskStore()
 
   useEffect(() => {
     userStore.fetchLawyers()
@@ -39,14 +44,21 @@ export default function CaseDetail() {
       const cr: any = await getClient(res.data.client_id)
       setClient(cr.data.client)
     }
+    const ar: any = await listCaseAssignees(caseId)
+    setAssignees(ar.data || [])
     docStore.fetchByCase(caseId)
     billingStore.fetchByCase(caseId)
+    taskStore.fetchByCase(caseId)
   }
 
   async function onStatusChange() {
-    await changeCaseStatus(caseId, status)
-    message.success('状态已更新')
-    load()
+    try {
+      await changeCaseStatus(caseId, status)
+      message.success('状态已更新')
+      load()
+    } catch {
+      // 错误提示由请求拦截器统一展示（如：存在未完成待办事项时拦截结案/归档）
+    }
   }
 
   async function onAssign() {
@@ -111,6 +123,15 @@ export default function CaseDetail() {
                 <Descriptions.Item label="地址">{client.address}</Descriptions.Item>
               </Descriptions>
             ) : null,
+          },
+          {
+            key: 'tasks',
+            label: (
+              <Badge count={taskStore.summary.pending} size="small" offset={[8, -2]}>
+                待办事项
+              </Badge>
+            ),
+            children: <CaseTaskList caseId={caseId} candidates={assignees} />,
           },
           {
             key: 'docs',

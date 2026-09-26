@@ -33,3 +33,23 @@ export const CaseTypeText: Record<string, string> = {
 
 export const CaseStatusOptions = Object.entries(CaseStatusText).map(([value, label]) => ({ label, value }))
 export const CaseTypeOptions = Object.entries(CaseTypeText).map(([value, label]) => ({ label, value }))
+
+// 案件待办状态/分组（与后端 backend/internal/constants/case_task.go 保持一致）
+export const CaseTaskStatus = {
+  PENDING: 'pending',
+  DONE: 'done',
+} as const
+
+export const CaseTaskGroup = {
+  OVERDUE: 'overdue',
+  TODAY: 'today',
+  PENDING: 'pending',
+  DONE: 'done',
+} as const
+
+export const CaseTaskGroupText: Record<string, string> = {
+  [CaseTaskGroup.OVERDUE]: '逾期',
+  [CaseTaskGroup.TODAY]: '今日',
+  [CaseTaskGroup.PENDING]: '未完成',
+  [CaseTaskGroup.DONE]: '已完成',
+}

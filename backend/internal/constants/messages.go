@@ -23,4 +23,8 @@ const (
 	MsgBillingPaid           = "账单已标记支付"
 	MsgBillingInvoiced       = "账单已开票"
 	MsgBillingVoided         = "账单已作废"
+	MsgCaseTaskCreated       = "待办事项已创建"
+	MsgCaseTaskCompleted     = "待办事项已完成"
+	// MsgCaseTaskBlocking 结案/归档拦截文案：待办数、负责人、最早截止日期。
+	MsgCaseTaskBlocking = "存在 %d 项未完成待办事项（负责人：%s，最早截止日期：%s），请先完成后再变更状态"
 )

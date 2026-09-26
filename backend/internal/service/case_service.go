@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"strings"
 	"time"
 
 	"cylawcase/internal/constants"
@@ -17,13 +18,14 @@ type CaseService struct {
 	repo       *repository.CaseRepository
 	clientRepo *repository.ClientRepository
 	userRepo   *repository.UserRepository
+	taskRepo   *repository.CaseTaskRepository
 	logger     *slog.Logger
 }
 
 // NewCaseService 构造案件服务。
 func NewCaseService(repo *repository.CaseRepository, clientRepo *repository.ClientRepository,
-	userRepo *repository.UserRepository, logger *slog.Logger) *CaseService {
-	return &CaseService{repo: repo, clientRepo: clientRepo, userRepo: userRepo, logger: logger}
+	userRepo *repository.UserRepository, taskRepo *repository.CaseTaskRepository, logger *slog.Logger) *CaseService {
+	return &CaseService{repo: repo, clientRepo: clientRepo, userRepo: userRepo, taskRepo: taskRepo, logger: logger}
 }
 
 // Create 创建案件。
@@ -92,6 +94,11 @@ func (s *CaseService) ChangeStatus(id uint64, operatorRole string, status string
 	if operatorRole != constants.RoleAdmin && !canFlow(c.Status, status) {
 		return nil, util.NewAppError(constants.CodeCaseStatusConflict, "Case[id="+u64(id)+"] status conflict: "+c.Status+" -> "+status)
 	}
+	if status == constants.CaseStatusClosed || status == constants.CaseStatusArchived {
+		if err := s.ensureNoPendingTasks(c); err != nil {
+			return nil, err
+		}
+	}
 	c.Status = status
 	if status == constants.CaseStatusClosed && c.CloseDate == nil {
 		now := time.Now()
@@ -146,6 +153,56 @@ func canFlow(from, to string) bool {
 		return false
 	}
 	return b == a+1 || b == a-1 || b == a
+}
+
+// ensureNoPendingTasks 结案/归档前校验：存在未完成待办时拦截，并提示负责人与最早截止日期。
+func (s *CaseService) ensureNoPendingTasks(c *model.Case) error {
+	tasks, err := s.taskRepo.ListPendingByCase(c.ID)
+	if err != nil {
+		return util.Wrap(err, "Case[id=%d] status change: list pending tasks failed", c.ID)
+	}
+	if len(tasks) == 0 {
+		return nil
+	}
+	names := s.assigneeNames(tasks)
+	var earliest *time.Time
+	for i := range tasks {
+		if d := tasks[i].DueDate; d != nil && (earliest == nil || d.Before(*earliest)) {
+			earliest = d
+		}
+	}
+	earliestStr := "无"
+	if earliest != nil {
+		earliestStr = earliest.Format("2006-01-02")
+	}
+	s.logger.Warn(constants.LogCaseStatusBlocked, "case_id", c.ID, "pending_tasks", len(tasks))
+	return util.NewAppError(constants.CodeCaseTaskBlocking,
+		fmt.Sprintf(constants.MsgCaseTaskBlocking, len(tasks), strings.Join(names, "、"), earliestStr))
+}
+
+// assigneeNames 待办负责人展示名列表（去重）。
+func (s *CaseService) assigneeNames(tasks []model.CaseTask) []string {
+	users, err := s.userRepo.ListByIDs(assigneeIDsOf(tasks))
+	if err != nil {
+		return []string{"未知"}
+	}
+	names := make([]string, 0, len(users))
+	for _, u := range users {
+		names = append(names, displayName(u))
+	}
+	if len(names) == 0 {
+		return []string{"未知"}
+	}
+	return names
+}
+
+// parseCoLawyers 解析协办人员 ID 列表。
+func parseCoLawyers(raw model.CoLawyerJSON) []uint64 {
+	var ids []uint64
+	if len(raw) > 0 {
+		_ = json.Unmarshal(raw, &ids)
+	}
+	return ids
 }
 
 func jsonCoLawyers(ids []uint64) model.CoLawyerJSON {

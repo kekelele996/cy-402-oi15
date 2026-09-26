@@ -32,7 +32,7 @@ func main() {
 		os.Exit(1)
 	}
 	if err := db.AutoMigrate(
-		&model.User{}, &model.Client{}, &model.Case{}, &model.Document{}, &model.Billing{}, &model.AuditLog{},
+		&model.User{}, &model.Client{}, &model.Case{}, &model.CaseTask{}, &model.Document{}, &model.Billing{}, &model.AuditLog{},
 	); err != nil {
 		logger.Error("auto migrate failed", "error", err.Error())
 		os.Exit(1)
@@ -45,25 +45,28 @@ func main() {
 	userRepo := repository.NewUserRepository(db)
 	clientRepo := repository.NewClientRepository(db)
 	caseRepo := repository.NewCaseRepository(db)
+	caseTaskRepo := repository.NewCaseTaskRepository(db)
 	documentRepo := repository.NewDocumentRepository(db)
 	billingRepo := repository.NewBillingRepository(db)
 
 	userSvc := service.NewUserService(userRepo, logger)
 	clientSvc := service.NewClientService(clientRepo, caseRepo, logger)
-	caseSvc := service.NewCaseService(caseRepo, clientRepo, userRepo, logger)
+	caseSvc := service.NewCaseService(caseRepo, clientRepo, userRepo, caseTaskRepo, logger)
+	caseTaskSvc := service.NewCaseTaskService(caseTaskRepo, caseRepo, userRepo, logger)
 	documentSvc := service.NewDocumentService(documentRepo, caseRepo, logger)
 	billingSvc := service.NewBillingService(billingRepo, caseRepo, clientRepo, logger)
 
 	userHandler := handler.NewUserHandler(userSvc, logger)
 	clientHandler := handler.NewClientHandler(clientSvc, logger)
 	caseHandler := handler.NewCaseHandler(caseSvc, logger)
+	caseTaskHandler := handler.NewCaseTaskHandler(caseTaskSvc, logger)
 	documentHandler := handler.NewDocumentHandler(documentSvc, logger)
 	billingHandler := handler.NewBillingHandler(billingSvc, logger)
 	uploadHandler := handler.NewUploadHandler(cfg, logger)
 	auditLogHandler := handler.NewAuditLogHandler(db, logger)
 
 	r := router.New(cfg, db, logger, userHandler, clientHandler, caseHandler,
-		documentHandler, billingHandler, uploadHandler, auditLogHandler)
+		caseTaskHandler, documentHandler, billingHandler, uploadHandler, auditLogHandler)
 
 	srv := &http.Server{
 		Addr:    ":" + cfg.ServerPort,

@@ -58,6 +58,20 @@ func (s *SeedService) Seed() error {
 				return err
 			}
 		}
+		overdue := now.AddDate(0, 0, -2)
+		upcoming := now.AddDate(0, 0, 3)
+		visited := now.AddDate(0, 0, -10)
+		visitedDone := now.AddDate(0, 0, -9)
+		tasks := []model.CaseTask{
+			{CaseID: cases[0].ID, Title: "整理补充证据材料并提交法院", DueDate: &overdue, AssigneeID: 2, Status: constants.TaskStatusPending, CreatedBy: 1},
+			{CaseID: cases[0].ID, Title: "预约开庭时间并通知当事人", DueDate: &upcoming, AssigneeID: 3, Status: constants.TaskStatusPending, CreatedBy: 1},
+			{CaseID: cases[0].ID, Title: "首次客户回访", DueDate: &visited, AssigneeID: 2, Status: constants.TaskStatusDone, CompletedAt: &visitedDone, CreatedBy: 1},
+		}
+		for i := range tasks {
+			if err := tx.Create(&tasks[i]).Error; err != nil {
+				return err
+			}
+		}
 		s.logger.Info("seed data created")
 		return nil
 	})

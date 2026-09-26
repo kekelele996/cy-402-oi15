@@ -60,6 +60,18 @@ func (r *UserRepository) ListLawyers() ([]model.User, error) {
 	return list, nil
 }
 
+// ListByIDs 按 ID 列表查询用户。
+func (r *UserRepository) ListByIDs(ids []uint64) ([]model.User, error) {
+	var list []model.User
+	if len(ids) == 0 {
+		return list, nil
+	}
+	if err := r.db.Where("id IN ?", ids).Order("id ASC").Find(&list).Error; err != nil {
+		return nil, fmt.Errorf("list users by ids: %w", err)
+	}
+	return list, nil
+}
+
 // Update 更新用户。
 func (r *UserRepository) Update(u *model.User) error {
 	if err := r.db.Save(u).Error; err != nil {

@@ -40,6 +40,18 @@ CREATE TABLE IF NOT EXISTS cases (
 );
 ALTER TABLE cases ADD CONSTRAINT uni_cases_case_no UNIQUE (case_no);
 
+CREATE TABLE IF NOT EXISTS case_tasks (
+  id BIGSERIAL PRIMARY KEY,
+  case_id BIGINT NOT NULL,
+  title VARCHAR(200) NOT NULL,
+  due_date TIMESTAMPTZ,
+  assignee_id BIGINT NOT NULL,
+  status VARCHAR(20) NOT NULL DEFAULT 'pending',
+  completed_at TIMESTAMPTZ,
+  created_by BIGINT NOT NULL DEFAULT 0,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
 CREATE TABLE IF NOT EXISTS documents (
   id BIGSERIAL PRIMARY KEY,
   title VARCHAR(200) NOT NULL,
@@ -91,6 +103,11 @@ INSERT INTO cases (id, case_no, title, case_type, status, accept_date, close_dat
 (2, 'CY20260002', '陈晓明民间借贷纠纷', 'civil', 'filed', NOW() - INTERVAL '6 days', NULL, '借款 50 万元及利息追偿。', 2, 2, '[]', NOW()),
 (3, 'CY20260003', '劳动争议仲裁案（已结）', 'labor', 'closed', NOW() - INTERVAL '107 days', NOW() - INTERVAL '27 days', '劳动仲裁已裁决结案。', 2, 2, '[]', NOW());
 
+INSERT INTO case_tasks (id, case_id, title, due_date, assignee_id, status, completed_at, created_by, created_at) VALUES
+(1, 1, '整理补充证据材料并提交法院', NOW() - INTERVAL '2 days', 2, 'pending', NULL, 1, NOW()),
+(2, 1, '预约开庭时间并通知当事人', NOW() + INTERVAL '3 days', 3, 'pending', NULL, 1, NOW()),
+(3, 1, '首次客户回访', NOW() - INTERVAL '10 days', 2, 'done', NOW() - INTERVAL '9 days', 1, NOW());
+
 INSERT INTO documents (id, title, file_type, file_url, upload_time, case_id, uploader_id, created_at) VALUES
 (1, '民事起诉状', 'complaint', '/uploads/case1_complaint.pdf', NOW(), 1, 2, NOW()),
 (2, '买卖合同证据清单', 'evidence', '/uploads/case1_evidence.pdf', NOW(), 1, 2, NOW()),
@@ -108,6 +125,7 @@ INSERT INTO audit_logs (id, operator_id, operator_name, action, entity_type, ent
 SELECT setval(pg_get_serial_sequence('users', 'id'), (SELECT COALESCE(MAX(id), 1) FROM users));
 SELECT setval(pg_get_serial_sequence('clients', 'id'), (SELECT COALESCE(MAX(id), 1) FROM clients));
 SELECT setval(pg_get_serial_sequence('cases', 'id'), (SELECT COALESCE(MAX(id), 1) FROM cases));
+SELECT setval(pg_get_serial_sequence('case_tasks', 'id'), (SELECT COALESCE(MAX(id), 1) FROM case_tasks));
 SELECT setval(pg_get_serial_sequence('documents', 'id'), (SELECT COALESCE(MAX(id), 1) FROM documents));
 SELECT setval(pg_get_serial_sequence('billings', 'id'), (SELECT COALESCE(MAX(id), 1) FROM billings));
 SELECT setval(pg_get_serial_sequence('audit_logs', 'id'), (SELECT COALESCE(MAX(id), 1) FROM audit_logs));

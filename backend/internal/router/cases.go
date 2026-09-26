@@ -16,4 +16,8 @@ func (r *Router) registerCaseRoutes(g *gin.RouterGroup) {
 	cases.PUT("/:id", r.caseH.Update)
 	cases.POST("/:id/status", r.caseH.ChangeStatus)
 	cases.POST("/:id/assign", r.caseH.Assign)
+	cases.GET("/:id/tasks", r.task.ListByCase)
+	cases.POST("/:id/tasks", r.task.Create)
+	cases.POST("/:id/tasks/:task_id/complete", r.task.Complete)
+	cases.GET("/:id/assignees", r.task.Assignees)
 }
