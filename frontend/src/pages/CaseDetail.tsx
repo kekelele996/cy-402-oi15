@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
-import { Card, Descriptions, Tabs, Button, Select, Space, message, Tag } from 'antd'
+import { Card, Descriptions, Tabs, Button, Select, Space, message, Tag, Modal, Badge } from 'antd'
 import { getCase, changeCaseStatus, assignLawyer } from '@/api/case'
 import { getClient } from '@/api/client'
 import DocumentList from '@/components/common/DocumentList'
@@ -8,10 +8,13 @@ import BillingCard from '@/components/common/BillingCard'
 import StatusBadge from '@/components/common/StatusBadge'
 import PermissionGuard from '@/components/common/PermissionGuard'
 import TimelineItem from '@/components/common/TimelineItem'
+import CaseTodoPanel from '@/components/common/CaseTodoPanel'
 import { useDocumentStore } from '@/stores/documentStore'
 import { useBillingStore } from '@/stores/billingStore'
 import { useUserStore } from '@/stores/userStore'
+import { useCaseTodoStore } from '@/stores/caseTodoStore'
 import { CaseStatusOptions, CaseTypeOptions } from '@/constants/case'
+import { ErrorCode } from '@/constants/errorCodes'
 import type { CaseItem, Client } from '@/types'
 
 export default function CaseDetail() {
@@ -24,6 +27,7 @@ export default function CaseDetail() {
   const docStore = useDocumentStore()
   const billingStore = useBillingStore()
   const userStore = useUserStore()
+  const todoStore = useCaseTodoStore()
 
   useEffect(() => {
     userStore.fetchLawyers()
@@ -41,12 +45,20 @@ export default function CaseDetail() {
     }
     docStore.fetchByCase(caseId)
     billingStore.fetchByCase(caseId)
+    todoStore.fetchBoard(caseId)
   }
 
   async function onStatusChange() {
-    await changeCaseStatus(caseId, status)
-    message.success('状态已更新')
-    load()
+    try {
+      await changeCaseStatus(caseId, status)
+      message.success('状态已更新')
+      load()
+    } catch (e: any) {
+      const data = e?.response?.data
+      if (data?.code === ErrorCode.CASE_TODO_PENDING) {
+        Modal.warning({ title: '状态变更被拦截', content: data.message })
+      }
+    }
   }
 
   async function onAssign() {
@@ -111,6 +123,15 @@ export default function CaseDetail() {
                 <Descriptions.Item label="地址">{client.address}</Descriptions.Item>
               </Descriptions>
             ) : null,
+          },
+          {
+            key: 'todos',
+            label: (
+              <Badge count={todoStore.board.stats.total_pending} size="small" overflowCount={99}>
+                <span style={{ paddingRight: 8 }}>待办事项</span>
+              </Badge>
+            ),
+            children: <CaseTodoPanel caseId={caseId} />,
           },
           {
             key: 'docs',

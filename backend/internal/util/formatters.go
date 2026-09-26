@@ -87,6 +87,34 @@ func BillingStatusText(s string) string {
 	}
 }
 
+// CaseTodoStatusText 待办状态文本。
+func CaseTodoStatusText(s string) string {
+	switch s {
+	case constants.CaseTodoStatusPending:
+		return "未完成"
+	case constants.CaseTodoStatusDone:
+		return "已完成"
+	default:
+		return s
+	}
+}
+
+// CaseTodoGroupText 待办分组文本。
+func CaseTodoGroupText(g string) string {
+	switch g {
+	case constants.CaseTodoGroupOverdue:
+		return "逾期"
+	case constants.CaseTodoGroupToday:
+		return "今日"
+	case constants.CaseTodoGroupPending:
+		return "未完成"
+	case constants.CaseTodoGroupDone:
+		return "已完成"
+	default:
+		return g
+	}
+}
+
 // DocumentTypeText 文档类型文本。
 func DocumentTypeText(t string) string {
 	switch t {

@@ -63,10 +63,10 @@ cy-402/
 │   ├── cmd/server/main.go
 │   └── internal/
 │       ├── config/
-│       ├── model/                 # user/client/case/document/billing/audit_log
+│       ├── model/                 # user/client/case/case_todo/document/billing/audit_log
 │       ├── repository/            # 按实体分文件
 │       ├── service/               # 业务逻辑 + 种子数据 + 单元测试
-│       ├── handler/               # HTTP 处理器（含 upload_handler、audit_log_handler）
+│       ├── handler/               # HTTP 处理器（含 case_todo_handler、upload_handler、audit_log_handler）
 │       ├── router/                # router.go + 按实体分文件
 │       ├── middleware/            # auth/rbac/rate_limiter/error_handler/audit_log/cors/request_logger
 │       ├── dto/
@@ -74,10 +74,10 @@ cy-402/
 │       └── util/                  # jwt/logger/formatters/amount_formatter/app_error/file_upload
 └── frontend/
     └── src/
-        ├── api/                   # auth/user/client/case/document/billing/auditLog/upload
-        ├── stores/                # authStore/userStore/clientStore/caseStore/documentStore/billingStore
+        ├── api/                   # auth/user/client/case/caseTodo/document/billing/auditLog/upload
+        ├── stores/                # authStore/userStore/clientStore/caseStore/caseTodoStore/documentStore/billingStore
         ├── types/
-        ├── components/common/     # CaseCard/DocumentList/StatusBadge/TimelineItem/AmountSummary/ClientCard/CaseTable/BillingCard/DocumentCard/FileUploader/FilterBar/AvatarUploader/PermissionGuard
+        ├── components/common/     # CaseCard/DocumentList/StatusBadge/TimelineItem/AmountSummary/ClientCard/CaseTable/BillingCard/DocumentCard/FileUploader/FilterBar/AvatarUploader/PermissionGuard/CaseTodoPanel
         ├── hooks/                 # useAuth/usePagination/useFileUpload/usePermission
         ├── pages/                 # Cases/CaseDetail/Clients/Billing/Documents/Profile/AuditLogs/Login
         ├── router/                # index.tsx + guards.tsx
@@ -125,6 +125,10 @@ cy-402/
 - 后端：`backend/internal/constants/billing.go`、`backend/internal/model/billing.go`、`backend/internal/service/billing_service.go`、`backend/internal/util/formatters.go`、`backend/internal/constants/log_templates.go`、`backend/internal/constants/error_codes.go`、`database/init.sql`
 - 前端：`frontend/src/constants/billing.ts`、`frontend/src/components/common/StatusBadge.tsx`、`frontend/src/components/common/AmountSummary.tsx`、`frontend/src/components/common/BillingCard.tsx`、`frontend/src/pages/Billing.tsx`
 
+### CaseTodoStatus / CaseTodoGroup（pending/done；overdue/today/pending/done）
+- 后端：`backend/internal/constants/case_todo.go`、`backend/internal/model/case_todo.go`、`backend/internal/service/case_todo_service.go`、`backend/internal/service/case_service.go`、`backend/internal/util/formatters.go`、`backend/internal/constants/log_templates.go`、`backend/internal/constants/error_codes.go`、`backend/internal/constants/messages.go`、`database/init.sql`
+- 前端：`frontend/src/constants/caseTodo.ts`、`frontend/src/components/common/CaseTodoPanel.tsx`、`frontend/src/pages/CaseDetail.tsx`、`frontend/src/stores/caseTodoStore.ts`
+
 ## API 接口清单
 
 | 方法 | 路径 | 说明 |
@@ -146,8 +150,12 @@ cy-402/
 | POST | /api/v1/cases | 创建案件 |
 | GET | /api/v1/cases/:id | 案件详情 |
 | PUT | /api/v1/cases/:id | 更新案件 |
-| POST | /api/v1/cases/:id/status | 案件状态流转 |
+| POST | /api/v1/cases/:id/status | 案件状态流转（结案/归档前校验未完成待办） |
 | POST | /api/v1/cases/:id/assign | 分配主办律师 |
+| GET | /api/v1/cases/:id/todos | 案件待办看板（逾期/今日/未完成/已完成分组 + 统计） |
+| POST | /api/v1/cases/:id/todos | 新建案件待办（负责人限主办/协办） |
+| GET | /api/v1/cases/:id/assignees | 案件可担当负责人列表（主办 + 协办） |
+| POST | /api/v1/case-todos/:id/complete | 完成待办（保留完成时间） |
 | GET | /api/v1/documents | 文档中心分页列表 |
 | POST | /api/v1/documents | 上传文档记录 |
 | GET | /api/v1/documents/by-case/:id | 按案件查询文档 |
@@ -166,6 +174,7 @@ cy-402/
 
 - 客户管理：新建/编辑/检索客户，查看历史案件。
 - 案件管理：创建案件、状态流转（立案→调查→庭审→结案→归档）、律师分配、筛选查询。
+- 案件待办：为案件记录事项/截止日期/负责人（限主办与协办），按逾期/今日/未完成/已完成分组查看；结案或归档时若存在未完成待办则拦截并提示负责人与最早截止日期；事项完成后保留完成时间并从待办统计中移除。
 - 文档归档：按案件上传/查看/删除文档（起诉状/答辩状/证据/判决书/合同等）。
 - 费用结算：创建账单、标记支付、开票、作废，本月应收/已收/待收汇总。
 - 审计日志：写操作自动记录（管理员查看）。

@@ -58,7 +58,22 @@ func (s *SeedService) Seed() error {
 				return err
 			}
 		}
+		day := 24 * time.Hour
+		doneAt := now.Add(-2 * day)
+		todos := []model.CaseTodo{
+			{CaseID: cases[0].ID, Title: "开庭准备：整理证据目录", DueDate: ptrTime(now.Add(-day)), AssigneeID: 2, Status: constants.CaseTodoStatusPending},
+			{CaseID: cases[0].ID, Title: "向法院补充提交转账凭证", DueDate: ptrTime(now), AssigneeID: 3, Status: constants.CaseTodoStatusPending},
+			{CaseID: cases[0].ID, Title: "回访客户确认送达地址", DueDate: ptrTime(now.Add(-4 * day)), AssigneeID: 3, Status: constants.CaseTodoStatusDone, CompletedAt: &doneAt},
+			{CaseID: cases[1].ID, Title: "立案材料补正", DueDate: ptrTime(now.Add(5 * day)), AssigneeID: 2, Status: constants.CaseTodoStatusPending},
+		}
+		for i := range todos {
+			if err := tx.Create(&todos[i]).Error; err != nil {
+				return err
+			}
+		}
 		s.logger.Info("seed data created")
 		return nil
 	})
 }
+
+func ptrTime(t time.Time) *time.Time { return &t }

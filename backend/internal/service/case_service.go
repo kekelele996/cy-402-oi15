@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"strconv"
 	"time"
 
 	"cylawcase/internal/constants"
@@ -17,13 +18,14 @@ type CaseService struct {
 	repo       *repository.CaseRepository
 	clientRepo *repository.ClientRepository
 	userRepo   *repository.UserRepository
+	todoRepo   *repository.CaseTodoRepository
 	logger     *slog.Logger
 }
 
 // NewCaseService 构造案件服务。
 func NewCaseService(repo *repository.CaseRepository, clientRepo *repository.ClientRepository,
-	userRepo *repository.UserRepository, logger *slog.Logger) *CaseService {
-	return &CaseService{repo: repo, clientRepo: clientRepo, userRepo: userRepo, logger: logger}
+	userRepo *repository.UserRepository, todoRepo *repository.CaseTodoRepository, logger *slog.Logger) *CaseService {
+	return &CaseService{repo: repo, clientRepo: clientRepo, userRepo: userRepo, todoRepo: todoRepo, logger: logger}
 }
 
 // Create 创建案件。
@@ -92,6 +94,11 @@ func (s *CaseService) ChangeStatus(id uint64, operatorRole string, status string
 	if operatorRole != constants.RoleAdmin && !canFlow(c.Status, status) {
 		return nil, util.NewAppError(constants.CodeCaseStatusConflict, "Case[id="+u64(id)+"] status conflict: "+c.Status+" -> "+status)
 	}
+	if status == constants.CaseStatusClosed || status == constants.CaseStatusArchived {
+		if err := s.ensureNoPendingTodos(c, status); err != nil {
+			return nil, err
+		}
+	}
 	c.Status = status
 	if status == constants.CaseStatusClosed && c.CloseDate == nil {
 		now := time.Now()
@@ -146,6 +153,31 @@ func canFlow(from, to string) bool {
 		return false
 	}
 	return b == a+1 || b == a-1 || b == a
+}
+
+// ensureNoPendingTodos 结案/归档前校验：存在未完成待办时拦截，并提示负责人与最早截止日期。
+func (s *CaseService) ensureNoPendingTodos(c *model.Case, target string) error {
+	cnt, err := s.todoRepo.CountPendingByCase(c.ID)
+	if err != nil {
+		return util.Wrap(err, "Case[id=%d] status change todo check failed", c.ID)
+	}
+	if cnt == 0 {
+		return nil
+	}
+	assignee := "-"
+	due := "-"
+	if t, err := s.todoRepo.EarliestPendingByCase(c.ID); err == nil {
+		if u, err := s.userRepo.FindByID(t.AssigneeID); err == nil {
+			assignee = displayName(u)
+		}
+		if t.DueDate != nil {
+			due = util.FormatDate(*t.DueDate)
+		}
+	}
+	s.logger.Warn(constants.LogCaseStatusBlockedByTodo, "case_id", c.ID, "status", target, "pending", cnt)
+	return util.NewAppError(constants.CodeCaseTodoPending,
+		"Case[id="+u64(c.ID)+"] "+util.CaseStatusText(target)+" blocked: "+constants.MsgCaseTodoPendingBlock+
+			"（"+strconv.FormatInt(cnt, 10)+" 项未完成，负责人="+assignee+"，最早截止="+due+"）")
 }
 
 func jsonCoLawyers(ids []uint64) model.CoLawyerJSON {

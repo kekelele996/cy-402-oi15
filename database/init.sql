@@ -76,6 +76,17 @@ CREATE TABLE IF NOT EXISTS audit_logs (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+CREATE TABLE IF NOT EXISTS case_todos (
+  id BIGSERIAL PRIMARY KEY,
+  case_id BIGINT NOT NULL,
+  title VARCHAR(200) NOT NULL,
+  due_date TIMESTAMPTZ,
+  assignee_id BIGINT NOT NULL,
+  status VARCHAR(30) NOT NULL DEFAULT 'pending',
+  completed_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
 -- 预置种子数据（密码：admin/Admin@123，lawyer 与 assistant/User@123）
 INSERT INTO users (id, username, password_hash, real_name, role, license_no, email, phone, avatar, created_at) VALUES
 (1, 'admin', '$2a$10$bFfMuQAuKWflKxpuDYdFpeGJPVgD83q/.278LHYLL5S0DDmEfChX2', '系统管理员', 'admin', '', 'admin@cylawcase.dev', '13800000001', '', NOW()),
@@ -104,6 +115,14 @@ INSERT INTO billings (id, bill_no, billing_type, amount, status, case_id, client
 INSERT INTO audit_logs (id, operator_id, operator_name, action, entity_type, entity_id, detail, ip, created_at) VALUES
 (1, 1, 'admin', 'seed', 'system', '', 'init', '127.0.0.1', NOW());
 
+-- 案件待办种子数据：覆盖逾期/今日/未完成/已完成四种分组
+INSERT INTO case_todos (id, case_id, title, due_date, assignee_id, status, completed_at, created_at) VALUES
+(1, 1, '第二次开庭准备：整理证据目录', NOW() - INTERVAL '2 days', 2, 'pending', NULL, NOW() - INTERVAL '10 days'),
+(2, 1, '向法院补充提交转账凭证', NOW(), 3, 'pending', NULL, NOW() - INTERVAL '5 days'),
+(3, 1, '约见当事人核对案情', NOW() + INTERVAL '3 days', 2, 'pending', NULL, NOW() - INTERVAL '3 days'),
+(4, 1, '回访客户确认送达地址', NOW() - INTERVAL '6 days', 3, 'done', NOW() - INTERVAL '4 days', NOW() - INTERVAL '8 days'),
+(5, 2, '立案材料补正', NOW() + INTERVAL '5 days', 2, 'pending', NULL, NOW() - INTERVAL '2 days');
+
 -- 重置自增序列，避免显式 ID 插入后主键冲突
 SELECT setval(pg_get_serial_sequence('users', 'id'), (SELECT COALESCE(MAX(id), 1) FROM users));
 SELECT setval(pg_get_serial_sequence('clients', 'id'), (SELECT COALESCE(MAX(id), 1) FROM clients));
@@ -111,3 +130,4 @@ SELECT setval(pg_get_serial_sequence('cases', 'id'), (SELECT COALESCE(MAX(id), 1
 SELECT setval(pg_get_serial_sequence('documents', 'id'), (SELECT COALESCE(MAX(id), 1) FROM documents));
 SELECT setval(pg_get_serial_sequence('billings', 'id'), (SELECT COALESCE(MAX(id), 1) FROM billings));
 SELECT setval(pg_get_serial_sequence('audit_logs', 'id'), (SELECT COALESCE(MAX(id), 1) FROM audit_logs));
+SELECT setval(pg_get_serial_sequence('case_todos', 'id'), (SELECT COALESCE(MAX(id), 1) FROM case_todos));

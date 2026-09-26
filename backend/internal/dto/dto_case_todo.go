@@ -1,0 +1,22 @@
+package dto
+
+import "time"
+
+// CaseTodoCreateRequest 创建案件待办请求。
+type CaseTodoCreateRequest struct {
+	Title      string  `json:"title" binding:"required,max=200"`
+	DueDate    *string `json:"due_date" binding:"required"`
+	AssigneeID uint64  `json:"assignee_id" binding:"required"`
+}
+
+// ParseDueDate 解析截止日期字符串。
+func ParseDueDate(s string) (*time.Time, error) {
+	if s == "" {
+		return nil, nil
+	}
+	t, err := time.Parse("2006-01-02", s)
+	if err != nil {
+		return nil, err
+	}
+	return &t, nil
+}

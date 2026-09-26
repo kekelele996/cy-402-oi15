@@ -70,6 +70,34 @@ export interface AuditLog {
   created_at: string
 }
 
+export interface CaseTodo {
+  id: number
+  case_id: number
+  title: string
+  due_date: string | null
+  assignee_id: number
+  assignee_name: string
+  status: string
+  completed_at: string | null
+  created_at: string
+}
+
+export interface CaseTodoStats {
+  total_pending: number
+  overdue_count: number
+  today_count: number
+  pending_count: number
+  done_count: number
+}
+
+export interface CaseTodoBoard {
+  overdue: CaseTodo[]
+  today: CaseTodo[]
+  pending: CaseTodo[]
+  done: CaseTodo[]
+  stats: CaseTodoStats
+}
+
 export interface PageResult<T> {
   list: T[]
   total: number
